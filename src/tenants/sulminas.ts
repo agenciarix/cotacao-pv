@@ -48,5 +48,5 @@ export const sulminas: Tenant = {
     enrollmentFeeCents: 14_900,
     coupons: {},
   },
-  crm: { provider: "powercrm", tokenEnv: "POWER_TOKEN_SULMINAS" },
+  crm: { provider: "powercrm", mode: "simulado", tokenEnv: "POWER_TOKEN_SULMINAS" },
 };

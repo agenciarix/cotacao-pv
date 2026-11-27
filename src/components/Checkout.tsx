@@ -9,12 +9,14 @@ type PublicLead = {
   step: string;
   name: string;
   vehicle?: Vehicle;
-  quoteOptions?: { planId: string; planName: string; monthlyCents: number; enrollmentFeeCents: number; discountPercent: number }[];
+  quoteOptions?: { planId: string; planName: string; monthlyCents: number; enrollmentFeeCents: number; discountPercent: number; coverages?: string[] }[];
   chosenPlanId?: string;
   crmQuoteId?: string;
 };
 
 type Item = { code: string; name: string };
+type Level = "modelo" | "ano";
+const LEVEL_LABEL: Record<Level, string> = { modelo: "Modelo", ano: "Ano" };
 
 const USAGE_LABEL: Record<UsageType, string> = {
   particular: "Uso particular",
@@ -43,13 +45,17 @@ interface Props {
   tenant: string;
   /** Onde o navegador chama a API. Padrão: /api/<cliente>. */
   apiBase?: string;
+  /** Busca de veículo pela placa. Desligada quando o catálogo vem do CRM. */
+  plateLookup?: boolean;
+  /** Campo de cupom (só no modo simulado por enquanto). */
+  coupons?: boolean;
   branding: Branding;
   plans: Plan[];
   vehicleTypes: VehicleType[];
   usageTypes: UsageType[];
 }
 
-export function Checkout({ tenant, apiBase, branding, plans, vehicleTypes, usageTypes }: Props) {
+export function Checkout({ tenant, apiBase, plateLookup = true, coupons = true, branding, plans, vehicleTypes, usageTypes }: Props) {
   const api = apiBase ?? `/api/${tenant}`;
   const [lead, setLead] = useState<PublicLead | null>(null);
   const [busy, setBusy] = useState(false);
@@ -66,9 +72,9 @@ export function Checkout({ tenant, apiBase, branding, plans, vehicleTypes, usage
   const [vehicle, setVehicle] = useState<Omit<Vehicle, "usage" | "type"> | null>(null);
   const [manual, setManual] = useState(false);
   const [brands, setBrands] = useState<Item[]>([]);
-  const [models, setModels] = useState<Item[]>([]);
-  const [years, setYears] = useState<Item[]>([]);
-  const [sel, setSel] = useState({ brand: "", model: "", year: "" });
+  const [level2, setLevel2] = useState<{ level: Level; items: Item[] } | null>(null);
+  const [level3, setLevel3] = useState<{ level: Level; items: Item[] } | null>(null);
+  const [sel, setSel] = useState({ brand: "", a: "", b: "" });
   const [city, setCity] = useState("");
   const [uf, setUf] = useState("");
   const [coupon, setCoupon] = useState("");
@@ -107,7 +113,10 @@ export function Checkout({ tenant, apiBase, branding, plans, vehicleTypes, usage
   async function submitContact(e: React.FormEvent) {
     e.preventDefault();
     const data = await call<PublicLead>(`${api}/leads`, { method: "POST", body: JSON.stringify({ name, phone }) });
-    if (data) setLead(data);
+    if (data) {
+      setLead(data);
+      if (!plateLookup) void startManualFor(type);
+    }
   }
 
   async function loadFipe(params: Record<string, string>) {
@@ -119,10 +128,12 @@ export function Checkout({ tenant, apiBase, branding, plans, vehicleTypes, usage
   async function startManual() {
     setManual(true);
     setVehicle(null);
-    setSel({ brand: "", model: "", year: "" });
-    setModels([]);
-    setYears([]);
-    setBrands((await loadFipe({})) ?? []);
+    setSel({ brand: "", a: "", b: "" });
+    setLevel2(null);
+    setLevel3(null);
+    const list = await loadFipe({});
+    if (!list) setError("Não conseguimos carregar a lista de veículos. Tente de novo.");
+    setBrands(list ?? []);
   }
 
   function changeType(t: VehicleType) {
@@ -130,6 +141,16 @@ export function Checkout({ tenant, apiBase, branding, plans, vehicleTypes, usage
     setVehicle(null);
     setManual(false);
     setBrands([]);
+    if (!plateLookup) void startManualFor(t);
+  }
+
+  async function startManualFor(t: VehicleType) {
+    setManual(true);
+    setSel({ brand: "", a: "", b: "" });
+    setLevel2(null);
+    setLevel3(null);
+    const res = await fetch(`${api}/fipe?${new URLSearchParams({ type: t })}`);
+    setBrands(res.ok ? await res.json() : []);
   }
 
   async function lookupPlate() {
@@ -149,22 +170,23 @@ export function Checkout({ tenant, apiBase, branding, plans, vehicleTypes, usage
   }
 
   async function pickBrand(code: string) {
-    setSel({ brand: code, model: "", year: "" });
-    setYears([]);
+    setSel({ brand: code, a: "", b: "" });
+    setLevel3(null);
     setVehicle(null);
-    setModels(code ? (await loadFipe({ brand: code })) ?? [] : []);
+    setLevel2(code ? await loadFipe({ brand: code }) : null);
   }
-  async function pickModel(code: string) {
-    setSel((s) => ({ ...s, model: code, year: "" }));
+  async function pickA(code: string) {
+    setSel((s) => ({ ...s, a: code, b: "" }));
     setVehicle(null);
-    setYears(code ? (await loadFipe({ brand: sel.brand, model: code })) ?? [] : []);
+    setLevel3(code ? await loadFipe({ brand: sel.brand, a: code }) : null);
   }
-  async function pickYear(code: string) {
-    setSel((s) => ({ ...s, year: code }));
+  async function pickB(code: string) {
+    setSel((s) => ({ ...s, b: code }));
     if (!code) return setVehicle(null);
-    const p = await loadFipe({ brand: sel.brand, model: sel.model, year: code });
-    if (!p) return setError("Valor FIPE não encontrado para esse ano.");
-    setVehicle({ plate: plate || undefined, brand: p.brand, model: p.model, year: p.year, fipeCode: p.fipeCode, fipeValueCents: p.valueCents });
+    const v = await loadFipe({ brand: sel.brand, a: sel.a, b: code });
+    if (!v) return setError("Não encontramos esse veículo. Escolha de novo.");
+    setError(null);
+    setVehicle({ plate: plate || undefined, brand: v.brand, model: v.model, year: v.year, fipeCode: v.fipeCode, fipeValueCents: v.fipeValueCents, refs: v.refs });
   }
 
   async function submitVehicle(e: React.FormEvent) {
@@ -172,7 +194,7 @@ export function Checkout({ tenant, apiBase, branding, plans, vehicleTypes, usage
     if (!lead || !vehicle) return setError("Informe o veículo.");
     const data = await call<PublicLead>(`${api}/leads/${lead.id}`, {
       method: "PATCH",
-      body: JSON.stringify({ step: "veiculo", vehicle: { ...vehicle, type, usage }, city, state: uf, coupon: coupon || undefined }),
+      body: JSON.stringify({ step: "veiculo", vehicle: { ...vehicle, plate: plate || vehicle.plate, type, usage }, city, state: uf, coupon: coupon || undefined }),
     });
     if (data) {
       setLead(data);
@@ -249,12 +271,20 @@ export function Checkout({ tenant, apiBase, branding, plans, vehicleTypes, usage
               </select>
             </>
           )}
-          <label htmlFor="plate">Placa</label>
-          <div className="row3">
+          <label htmlFor="plate">Placa{plateLookup ? "" : " (opcional)"}</label>
+          {plateLookup ? (
+            <div className="row3">
+              <input id="plate" value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase().slice(0, 8))} placeholder="ABC1D23" />
+              <button type="button" className="btn ghost" style={{ marginTop: 0 }} onClick={lookupPlate} disabled={busy || plate.length < 7}>Buscar</button>
+            </div>
+          ) : (
             <input id="plate" value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase().slice(0, 8))} placeholder="ABC1D23" />
-            <button type="button" className="btn ghost" style={{ marginTop: 0 }} onClick={lookupPlate} disabled={busy || plate.length < 7}>Buscar</button>
-          </div>
-          {!manual && <p className="note"><button type="button" className="link" onClick={startManual}>Não sei a placa / escolher pela FIPE</button></p>}
+          )}
+          {!manual && (
+            <p className="note">
+              <button type="button" className="link" onClick={startManual}>{plateLookup ? "Não sei a placa / escolher pela FIPE" : "Escolher marca, ano e modelo"}</button>
+            </p>
+          )}
 
           {manual && (
             <>
@@ -263,15 +293,15 @@ export function Checkout({ tenant, apiBase, branding, plans, vehicleTypes, usage
                 <option value="">Selecione</option>
                 {brands.map((b) => <option key={b.code} value={b.code}>{b.name}</option>)}
               </select>
-              <label htmlFor="model">Modelo</label>
-              <select id="model" value={sel.model} onChange={(e) => pickModel(e.target.value)} disabled={!sel.brand}>
+              <label htmlFor="lvl2">{level2 ? LEVEL_LABEL[level2.level] : plateLookup ? "Modelo" : "Ano"}</label>
+              <select id="lvl2" value={sel.a} onChange={(e) => pickA(e.target.value)} disabled={!sel.brand || !level2}>
                 <option value="">Selecione</option>
-                {models.map((m) => <option key={m.code} value={m.code}>{m.name}</option>)}
+                {level2?.items.map((m) => <option key={m.code} value={m.code}>{m.name}</option>)}
               </select>
-              <label htmlFor="year">Ano</label>
-              <select id="year" value={sel.year} onChange={(e) => pickYear(e.target.value)} disabled={!sel.model}>
+              <label htmlFor="lvl3">{level3 ? LEVEL_LABEL[level3.level] : plateLookup ? "Ano" : "Modelo"}</label>
+              <select id="lvl3" value={sel.b} onChange={(e) => pickB(e.target.value)} disabled={!sel.a || !level3}>
                 <option value="">Selecione</option>
-                {years.map((y) => <option key={y.code} value={y.code}>{y.name}</option>)}
+                {level3?.items.map((y) => <option key={y.code} value={y.code}>{y.name}</option>)}
               </select>
             </>
           )}
@@ -279,7 +309,7 @@ export function Checkout({ tenant, apiBase, branding, plans, vehicleTypes, usage
           {vehicle && (
             <div className="vehicle">
               <strong>{vehicle.brand} {vehicle.model} {vehicle.year}</strong>
-              <div className="note">Valor FIPE: {formatBRL(vehicle.fipeValueCents)}</div>
+              {vehicle.fipeValueCents ? <div className="note">Valor FIPE: {formatBRL(vehicle.fipeValueCents)}</div> : null}
             </div>
           )}
 
@@ -296,8 +326,12 @@ export function Checkout({ tenant, apiBase, branding, plans, vehicleTypes, usage
               </select>
             </div>
           </div>
-          <label htmlFor="coupon">Cupom ou código de indicação (opcional)</label>
-          <input id="coupon" value={coupon} onChange={(e) => setCoupon(e.target.value.toUpperCase())} />
+          {coupons && (
+            <>
+              <label htmlFor="coupon">Cupom ou código de indicação (opcional)</label>
+              <input id="coupon" value={coupon} onChange={(e) => setCoupon(e.target.value.toUpperCase())} />
+            </>
+          )}
           <button className="btn" disabled={busy || !vehicle}>{busy ? "Calculando..." : "Ver preço"}</button>
         </form>
       )}
@@ -314,8 +348,10 @@ export function Checkout({ tenant, apiBase, branding, plans, vehicleTypes, usage
                   {plan?.highlight && <span className="tag">Mais escolhido</span>}
                   <div><strong>{o.planName}</strong></div>
                   <div className="price">{formatBRL(o.monthlyCents)}<small style={{ fontSize: ".9rem", fontWeight: 400 }}>/mês</small></div>
-                  <div className="note">Adesão única de {formatBRL(o.enrollmentFeeCents)}{o.discountPercent ? ` · ${o.discountPercent}% de desconto aplicado` : ""}</div>
-                  {plan && <ul>{plan.coverages.map((c) => <li key={c}>{c}</li>)}</ul>}
+                  <div className="note">{o.enrollmentFeeCents ? `Adesão única de ${formatBRL(o.enrollmentFeeCents)}` : "Sem taxa de adesão"}{o.discountPercent ? ` · ${o.discountPercent}% de desconto aplicado` : ""}</div>
+                  {(o.coverages?.length ? o.coverages : plan?.coverages ?? []).length > 0 && (
+                    <ul>{(o.coverages?.length ? o.coverages : plan?.coverages ?? []).map((c) => <li key={c}>{c}</li>)}</ul>
+                  )}
                 </button>
               );
             })}

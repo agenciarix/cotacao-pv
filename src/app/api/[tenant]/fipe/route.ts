@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { error, json, tenantOr404 } from "@/lib/http";
 import type { VehicleType } from "@/lib/types";
-import { getFipeProvider } from "@/lib/vehicles";
+import { getCatalog } from "@/lib/vehicles";
 
 /**
- * Navegação pela FIPE, um nível por vez:
- * ?type=carro -> marcas; &brand= -> modelos; &model= -> anos; &year= -> preço.
+ * Catálogo de veículos, um nível por vez:
+ * ?type= -> marcas; &brand= -> 2º nível; &a= -> 3º nível; &b= -> veículo.
+ * Cada nível diz se é "modelo" ou "ano" (a FIPE e o Power usam ordens diferentes).
  */
 export async function GET(req: Request, { params }: { params: Promise<{ tenant: string }> }) {
   const tenant = await tenantOr404(params);
@@ -14,18 +15,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ tenant: 
   const type = q.get("type") as VehicleType | null;
   if (!type || !tenant.acceptance.vehicleTypes.includes(type)) return error("Tipo de veículo inválido.", 400);
   const brand = q.get("brand");
-  const model = q.get("model");
-  const year = q.get("year");
-  const fipe = getFipeProvider();
+  const a = q.get("a");
+  const b = q.get("b");
   try {
-    if (brand && model && year) {
-      const price = await fipe.price(type, brand, model, year);
-      return price ? json(price) : error("Valor FIPE não encontrado.", 404);
+    const catalog = getCatalog(tenant);
+    if (brand && a && b) {
+      const v = await catalog.resolve(type, brand, a, b);
+      return v ? json(v) : error("Veículo não encontrado no catálogo.", 404);
     }
-    if (brand && model) return json(await fipe.years(type, brand, model));
-    if (brand) return json(await fipe.models(type, brand));
-    return json(await fipe.brands(type));
-  } catch {
-    return error("Tabela FIPE indisponível no momento.", 502);
+    if (brand && a) return json(await catalog.step3(type, brand, a));
+    if (brand) return json(await catalog.step2(type, brand));
+    return json(await catalog.brands(type));
+  } catch (err) {
+    console.error(`[catalogo] ${tenant.slug}:`, err);
+    return error("Catálogo de veículos indisponível no momento.", 502);
   }
 }

@@ -1,11 +1,11 @@
 import { updateLead } from "../store";
 import type { Lead, Tenant } from "../types";
-import { powerApi } from "./power-api";
 import { powerMock } from "./power-mock";
 import type { CrmConnector } from "./types";
 
+/** Modo simulado: registra o que seria enviado ao Power, sem sair do sistema. */
 export function getCrm(): CrmConnector {
-  return process.env.CRM_MODE === "power" ? powerApi : powerMock;
+  return powerMock;
 }
 
 /**

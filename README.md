@@ -41,7 +41,8 @@ npm run typecheck
 | `src/lib/pricing.ts` | Motor de preço: faixa FIPE x plano, multiplicador por UF e por uso, adesão, cupom. |
 | `src/lib/acceptance.ts` | Regras de aceitação de veículo e cidade. |
 | `src/lib/checkout.ts` | Regras de cada etapa do checkout (validação, ordem das etapas, sincronização). |
-| `src/lib/crm/` | Integração com o CRM. `power-mapping.ts` monta os dados, `power-mock.ts` simula, `power-api.ts` é o conector real. |
+| `src/lib/power/` | Power CRM real: cliente da API, catálogo de veículos e fluxo da cotação. |
+| `src/lib/crm/` | Modo simulado: monta e registra o que seria enviado. |
 | `src/lib/vehicles/` | Consulta de placa e tabela FIPE (simulada ou pela API pública parallelum). |
 | `src/lib/store.ts` | Armazenamento provisório em memória. |
 | `src/app/api/[tenant]/` | API usada pelo checkout. |
@@ -56,15 +57,17 @@ npm run typecheck
 
 ## Integração com o Power CRM
 
-- `CRM_MODE=mock` (padrão): nada sai do sistema; o painel mostra o que seria enviado.
-- `CRM_MODE=power`: usa `src/lib/crm/power-api.ts`.
+Cada cliente escolhe o modo em `crm.mode` (`src/tenants/<slug>.ts`):
 
-**Pendente de confirmação na documentação da Power API** (marcado com `TODO(power)` no código):
-- caminhos de "cadastro de cotação" e "alterar cotação";
-- formato do cabeçalho de autenticação;
-- nomes dos campos (hoje seguem o formulário dinâmico público do Power, `pwrVhclPlts`, `pwrAssocNm` etc.);
-- onde a resposta traz o id da cotação;
-- se dá para ler planos e tabelas de preço pela API (aí `src/tenants` passa a ser alimentado pelo Power).
+- **`power`**: o checkout usa o Power do cliente de ponta a ponta. A cotação é criada no Power quando a pessoa
+  deixa nome e telefone; marca, ano e modelo vêm do catálogo do Power; **os planos e preços são calculados pelo
+  próprio Power** com as tabelas da associação; o plano escolhido e os dados pessoais são gravados na mesma cotação.
+  Precisa do token em `POWER_TOKEN_<CLIENTE>` (Power > Minha empresa > Plugins > Power API > Adicionar) e do id
+  da cooperativa em `crm.power.coop`.
+- **`simulado`**: usa a tabela de preço local (`pricing`) e só registra no painel o que seria enviado.
+
+Detalhes das chamadas e suposições a confirmar: [docs/power-api.md](docs/power-api.md).
+O cliente `vix` já está configurado no modo `power`.
 
 ## Publicar no domínio do cliente
 
@@ -115,8 +118,7 @@ Para testar localmente sem DNS: `curl -H "Host: cotacao.protegedemo.com.br" http
 
 ## Próximos passos
 
-- Confirmar a Power API e ligar o conector real.
-- Importar as tabelas de preço do Power.
+- Primeiro teste com token real da VIX e confirmar as suposições de docs/power-api.md.
 - Trocar o armazenamento em memória por Postgres (Supabase) e criar o painel com login.
 - Contratar um serviço de consulta de placa.
 - Fase 2: pagamento (PIX/cartão), vistoria pelo celular, documentos e contrato.

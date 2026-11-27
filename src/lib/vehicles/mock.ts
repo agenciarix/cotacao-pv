@@ -1,5 +1,5 @@
 import type { VehicleType } from "../types";
-import type { FipeItem, FipePrice, FipeProvider, PlateLookupResult, PlateProvider } from "./types";
+import type { CatalogItem, CatalogVehicle, PlateLookupResult, PlateProvider, VehicleCatalog } from "./types";
 
 interface MockModel {
   code: string;
@@ -67,33 +67,30 @@ function findModel(type: VehicleType, brandCode: string, modelCode: string) {
   return brand && model ? { brand, model } : null;
 }
 
-export const mockFipe: FipeProvider = {
+export const mockCatalog: VehicleCatalog = {
   async brands(type) {
-    return (DATA[type] ?? []).map((b): FipeItem => ({ code: b.code, name: b.name }));
+    return (DATA[type] ?? []).map((b): CatalogItem => ({ code: b.code, name: b.name }));
   },
-  async models(type, brandCode) {
+  async step2(type, brandCode) {
     const brand = DATA[type]?.find((b) => b.code === brandCode);
-    return (brand?.models ?? []).map((m) => ({ code: m.code, name: m.name }));
+    return { level: "modelo", items: (brand?.models ?? []).map((m) => ({ code: m.code, name: m.name })) };
   },
-  async years(type, brandCode, modelCode) {
+  async step3(type, brandCode, modelCode) {
     const found = findModel(type, brandCode, modelCode);
-    if (!found) return [];
-    return Object.keys(found.model.prices)
-      .sort((a, b) => Number(b) - Number(a))
-      .map((y) => ({ code: y, name: y }));
+    const years = found ? Object.keys(found.model.prices).sort((a, b) => Number(b) - Number(a)) : [];
+    return { level: "ano", items: years.map((y) => ({ code: y, name: y })) };
   },
-  async price(type, brandCode, modelCode, yearCode): Promise<FipePrice | null> {
+  async resolve(type, brandCode, modelCode, yearCode): Promise<CatalogVehicle | null> {
     const found = findModel(type, brandCode, modelCode);
     const year = Number(yearCode);
     const value = found?.model.prices[year];
     if (!found || value === undefined) return null;
     return {
-      fipeCode: `MOCK-${brandCode}-${modelCode}`,
       brand: found.brand.name,
       model: found.model.name,
       year,
-      valueCents: value,
-      reference: "exemplo",
+      fipeCode: `MOCK-${brandCode}-${modelCode}`,
+      fipeValueCents: value,
     };
   },
 };

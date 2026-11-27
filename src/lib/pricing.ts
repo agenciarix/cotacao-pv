@@ -1,7 +1,7 @@
-import type { PricingTable, QuoteOption, Vehicle } from "./types";
+import type { PricingTable, QuoteOption, UsageType, VehicleType } from "./types";
 
 export interface QuoteInput {
-  vehicle: Pick<Vehicle, "type" | "fipeValueCents" | "usage">;
+  vehicle: { type: VehicleType; fipeValueCents: number; usage: UsageType };
   state: string;
   coupon?: string;
 }

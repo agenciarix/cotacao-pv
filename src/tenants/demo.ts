@@ -78,5 +78,5 @@ export const demo: Tenant = {
     enrollmentFeeCents: 19_900,
     coupons: { BEMVINDO10: { percentOff: 10, description: "10% na mensalidade" } },
   },
-  crm: { provider: "powercrm", tokenEnv: "POWER_TOKEN_DEMO" },
+  crm: { provider: "powercrm", mode: "simulado", tokenEnv: "POWER_TOKEN_DEMO" },
 };

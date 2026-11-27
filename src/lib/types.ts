@@ -69,10 +69,22 @@ export type CrmProvider = "powercrm";
 
 export interface CrmConfig {
   provider: CrmProvider;
+  /**
+   * "power": preços, planos e catálogo de veículos vêm do Power do cliente.
+   * "simulado": usa a tabela local (`pricing`) e só registra o que seria enviado.
+   */
+  mode: "power" | "simulado";
   /** Nome da variável de ambiente que guarda o token deste cliente. */
   tokenEnv: string;
-  /** Campos específicos da conta Power do cliente (ids de funil, origem etc.). */
-  options?: Record<string, string>;
+  /** Ids da conta Power do cliente. */
+  power?: {
+    /** Id da cooperativa (Minha empresa > Cooperativas). */
+    coop?: number;
+    origemId?: number;
+    leadSource?: number;
+    /** Código do consultor que recebe as cotações. */
+    slsmnId?: string;
+  };
 }
 
 export interface Tenant {
@@ -85,6 +97,7 @@ export interface Tenant {
   domains: string[];
   branding: Branding;
   acceptance: AcceptanceRules;
+  /** Tabela local, usada só no modo "simulado". No modo "power" o preço vem do Power. */
   pricing: PricingTable;
   crm: CrmConfig;
   /** Pixel do Meta, opcional. */
@@ -98,8 +111,11 @@ export interface Vehicle {
   model: string;
   year: number;
   fipeCode?: string;
-  fipeValueCents: number;
+  /** Valor FIPE. Obrigatório no modo simulado; no modo Power quem consulta é o Power. */
+  fipeValueCents?: number;
   usage: UsageType;
+  /** Ids do catálogo usado (no Power: marca, ano e modelo). */
+  refs?: Record<string, string>;
 }
 
 export interface Address {
@@ -120,6 +136,10 @@ export interface QuoteOption {
   monthlyCents: number;
   enrollmentFeeCents: number;
   discountPercent: number;
+  /** Id do plano na tabela do CRM (no Power, tablePricePlanId). */
+  externalId?: string;
+  /** Coberturas e assistências vindas do CRM. */
+  coverages?: string[];
 }
 
 export interface Lead {

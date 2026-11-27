@@ -1,6 +1,7 @@
 import type { Tenant } from "@/lib/types";
 import { demo } from "./demo";
 import { sulminas } from "./sulminas";
+import { vix } from "./vix";
 
 /**
  * Registro dos clientes. Por enquanto em código; depois vai para o banco
@@ -9,6 +10,7 @@ import { sulminas } from "./sulminas";
 const TENANTS: Record<string, Tenant> = {
   [demo.slug]: demo,
   [sulminas.slug]: sulminas,
+  [vix.slug]: vix,
 };
 
 export function getTenant(slug: string): Tenant | undefined {

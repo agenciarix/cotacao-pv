@@ -32,6 +32,8 @@ export default async function CotacaoPage({ params }: Props) {
       <Checkout
         tenant={tenant.slug}
         apiBase={apiBase}
+        plateLookup={tenant.crm.mode !== "power"}
+        coupons={tenant.crm.mode !== "power"}
         branding={branding}
         plans={tenant.pricing.plans}
         vehicleTypes={tenant.acceptance.vehicleTypes}

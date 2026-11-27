@@ -10,7 +10,7 @@ import { advanceCheckout, publicLead, startCheckout } from "@/lib/checkout";
 import { normalizePlate } from "@/lib/format";
 import { getLead, listCrmLog, type CrmLogEntry } from "@/lib/store";
 import type { VehicleType } from "@/lib/types";
-import { mockFipe, mockPlates } from "@/lib/vehicles/mock";
+import { mockCatalog, mockPlates } from "@/lib/vehicles/mock";
 import { getTenant, listTenants } from "@/tenants";
 
 const realFetch = window.fetch.bind(window);
@@ -49,14 +49,14 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     if (path === "fipe") {
       const q = url.searchParams;
       const type = q.get("type") as VehicleType;
-      const brand = q.get("brand"), model = q.get("model"), year = q.get("year");
-      if (brand && model && year) {
-        const p = await mockFipe.price(type, brand, model, year);
-        return p ? reply(p) : reply({ error: "Valor FIPE não encontrado." }, 404);
+      const brand = q.get("brand"), a = q.get("a"), b = q.get("b");
+      if (brand && a && b) {
+        const v = await mockCatalog.resolve(type, brand, a, b);
+        return v ? reply(v) : reply({ error: "Veículo não encontrado." }, 404);
       }
-      if (brand && model) return reply(await mockFipe.years(type, brand, model));
-      if (brand) return reply(await mockFipe.models(type, brand));
-      return reply(await mockFipe.brands(type));
+      if (brand && a) return reply(await mockCatalog.step3(type, brand, a));
+      if (brand) return reply(await mockCatalog.step2(type, brand));
+      return reply(await mockCatalog.brands(type));
     }
     return reply({ error: "Rota não encontrada." }, 404);
   } finally {
@@ -102,7 +102,7 @@ function App() {
       <div className="demo-bar">
         <label htmlFor="tenant-pick">Cliente (white label)</label>
         <select id="tenant-pick" value={slug} onChange={(e) => setSlug(e.target.value)}>
-          {listTenants().map((t) => <option key={t.slug} value={t.slug}>{t.branding.name}</option>)}
+          {listTenants().filter((t) => t.crm.mode === "simulado").map((t) => <option key={t.slug} value={t.slug}>{t.branding.name}</option>)}
         </select>
         <button type="button" className="link" onClick={() => setRun((n) => n + 1)}>Recomeçar cotação</button>
         <span className="note">Placas de teste: ABC1D23, BRA2E19, MOT0A12. Outras placas caem na FIPE.</span>

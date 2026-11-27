@@ -2,12 +2,9 @@ import { onlyDigits } from "../format";
 import type { Lead } from "../types";
 
 /**
- * Converte o lead no formato que vamos enviar ao Power CRM.
- *
- * SUPOSIÇÃO: os nomes de campo abaixo seguem o formulário dinâmico público
- * do Power (pwrVhclPlts, pwrAssocNm...). Os nomes reais da Power API
- * ("cadastro de cotação" / "alterar cotação") precisam ser confirmados na
- * documentação logada. Quando confirmar, só este arquivo muda.
+ * Resumo do lead mostrado no painel do modo simulado. Os nomes seguem o
+ * formulário dinâmico público do Power. O modo real usa os campos da Power
+ * API em src/lib/power/engine.ts.
  */
 export interface PowerQuotePayload {
   pwrAssocNm: string;
@@ -59,7 +56,7 @@ export function toPowerPayload(lead: Lead): PowerQuotePayload {
     payload.pwrVhclMdl = v.model;
     payload.pwrVhclVrsn = v.year;
     if (v.fipeCode) payload.pwrVhclFipeCd = v.fipeCode;
-    payload.pwrVhclFipeVl = v.fipeValueCents / 100;
+    if (v.fipeValueCents) payload.pwrVhclFipeVl = v.fipeValueCents / 100;
     payload.pwrWorkVhcl = v.usage !== "particular";
   }
   const state = lead.address?.state ?? lead.state;

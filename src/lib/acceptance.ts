@@ -15,7 +15,7 @@ export function checkVehicle(rules: AcceptanceRules, v: Vehicle): AcceptanceResu
   if (v.year < rules.minYear) {
     return { accepted: false, reason: `Aceitamos veículos a partir de ${rules.minYear}.` };
   }
-  if (v.fipeValueCents > rules.maxFipeCents) {
+  if ((v.fipeValueCents ?? 0) > rules.maxFipeCents) {
     return { accepted: false, reason: "O valor FIPE do veículo está acima do limite aceito." };
   }
   const brand = normalize(v.brand);

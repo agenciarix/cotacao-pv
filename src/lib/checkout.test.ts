@@ -73,7 +73,7 @@ describe("fluxo do checkout", () => {
       createQuote: async () => { throw new Error("Power fora do ar"); },
       updateQuote: async () => { throw new Error("Power fora do ar"); },
     };
-    const start = await startCheckout(demo, { name: "Carlos Dias", phone: "11988887777" }, broken);
+    const start = await startCheckout(demo, { name: "Carlos Dias", phone: "11988887777" }, { crm: broken });
     if (!start.ok) throw new Error(start.error);
     expect(start.lead.crmQuoteId).toBeUndefined();
     expect(start.lead.crmSyncError).toBe("Power fora do ar");
