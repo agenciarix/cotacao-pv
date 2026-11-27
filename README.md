@@ -46,6 +46,7 @@ npm run typecheck
 | `src/lib/store.ts` | Armazenamento provisório em memória. |
 | `src/app/api/[tenant]/` | API usada pelo checkout. |
 | `src/app/[tenant]/cotacao` | Tela do checkout. |
+| `src/proxy.ts`, `src/lib/routing.ts` | Reconhecimento do cliente pelo domínio. |
 
 ## Adicionar um cliente
 
@@ -64,6 +65,53 @@ npm run typecheck
 - nomes dos campos (hoje seguem o formulário dinâmico público do Power, `pwrVhclPlts`, `pwrAssocNm` etc.);
 - onde a resposta traz o id da cotação;
 - se dá para ler planos e tabelas de preço pela API (aí `src/tenants` passa a ser alimentado pelo Power).
+
+## Publicar no domínio do cliente
+
+Uma única instalação atende todos os clientes. Cada cliente lista os seus domínios em `domains`
+(`src/tenants/<slug>.ts`) e o sistema reconhece o cliente pelo domínio da requisição (`src/proxy.ts`).
+O mesmo cliente pode usar os dois formatos ao mesmo tempo.
+
+**Opção A, subdomínio (recomendada): `cotacao.cliente.com.br`**
+
+1. Adicione `cotacao.cliente.com.br` em `domains` do cliente.
+2. No DNS do cliente, crie um `CNAME` de `cotacao` apontando para o endereço da nossa hospedagem.
+3. Adicione o domínio na hospedagem para gerar o certificado HTTPS.
+
+Funciona com qualquer site do cliente, inclusive os feitos em construtores (Wix, Base44, WordPress hospedado etc.).
+
+**Opção B, caminho no site do cliente: `cliente.com.br/cotacao`**
+
+Só funciona se o servidor ou a CDN do site do cliente puder repassar um caminho para outro endereço.
+
+1. Adicione `cliente.com.br` (e `www.cliente.com.br`, se usar) em `domains`.
+2. Na nossa hospedagem, defina `ASSET_PREFIX` com o nosso endereço (ex.: `https://app.cotacaopv.com.br`),
+   para os arquivos JS/CSS virem de nós e não do site do cliente.
+3. No site do cliente, repasse `/cotacao` e tudo abaixo dele para nós, mantendo o caminho e enviando o domínio
+   original em `X-Forwarded-Host`. Exemplo em nginx:
+
+```nginx
+location /cotacao {
+    proxy_pass https://app.cotacaopv.com.br;
+    proxy_set_header Host app.cotacaopv.com.br;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_ssl_server_name on;
+}
+```
+
+Com Cloudflare, o mesmo se faz com uma regra de Worker ou Origin Rule no caminho `/cotacao*`.
+
+**O que o sistema faz em cada caso**
+
+| Endereço | Vai para |
+| --- | --- |
+| `cotacao.cliente.com.br/` | checkout do cliente |
+| `cliente.com.br/cotacao` | checkout do cliente |
+| `.../api/...` ou `.../cotacao/api/...` | API do próprio cliente (nunca a de outro) |
+| `.../painel` ou `.../cotacao/painel` | painel do cliente |
+| `/<outro-cliente>/...` no domínio de um cliente | 404 |
+
+Para testar localmente sem DNS: `curl -H "Host: cotacao.protegedemo.com.br" http://localhost:3000/`.
 
 ## Próximos passos
 

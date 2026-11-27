@@ -41,14 +41,16 @@ function maskCep(v: string) {
 
 interface Props {
   tenant: string;
+  /** Onde o navegador chama a API. Padrão: /api/<cliente>. */
+  apiBase?: string;
   branding: Branding;
   plans: Plan[];
   vehicleTypes: VehicleType[];
   usageTypes: UsageType[];
 }
 
-export function Checkout({ tenant, branding, plans, vehicleTypes, usageTypes }: Props) {
-  const api = `/api/${tenant}`;
+export function Checkout({ tenant, apiBase, branding, plans, vehicleTypes, usageTypes }: Props) {
+  const api = apiBase ?? `/api/${tenant}`;
   const [lead, setLead] = useState<PublicLead | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

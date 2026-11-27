@@ -3,6 +3,7 @@ import type { Tenant } from "@/lib/types";
 /** Segundo cliente fictício, para mostrar marca, regras e preços diferentes. */
 export const sulminas: Tenant = {
   slug: "sulminas",
+  domains: ["cotacao.mutuasuldeminas.com.br", "mutuasuldeminas.com.br"],
   branding: {
     name: "Mútua Sul de Minas",
     primaryColor: "#b45309",

@@ -77,6 +77,12 @@ export interface CrmConfig {
 
 export interface Tenant {
   slug: string;
+  /**
+   * Domínios onde o checkout responde por este cliente, sem protocolo.
+   * Ex.: "cotacao.cliente.com.br" (subdomínio apontado para nós) ou
+   * "cliente.com.br" (site do cliente repassa /cotacao para nós).
+   */
+  domains: string[];
   branding: Branding;
   acceptance: AcceptanceRules;
   pricing: PricingTable;

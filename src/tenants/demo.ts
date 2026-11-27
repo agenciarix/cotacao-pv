@@ -39,6 +39,7 @@ const PLANS = [
  */
 export const demo: Tenant = {
   slug: "demo",
+  domains: ["cotacao.protegedemo.com.br", "protegedemo.com.br", "www.protegedemo.com.br"],
   branding: {
     name: "Protege Demo",
     primaryColor: "#0f766e",

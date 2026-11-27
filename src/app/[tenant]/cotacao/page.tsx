@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Checkout } from "@/components/Checkout";
 import { getTenant } from "@/tenants";
@@ -18,6 +19,10 @@ export default async function CotacaoPage({ params }: Props) {
   const tenant = getTenant((await params).tenant);
   if (!tenant) notFound();
   const { branding } = tenant;
+  // Pelo domínio do cliente, a API é chamada no mesmo domínio (ex.: /cotacao/api).
+  const h = await headers();
+  const viaClientDomain = h.get("x-cotacao-tenant") === tenant.slug;
+  const apiBase = viaClientDomain ? `${h.get("x-cotacao-base") ?? ""}/api` : `/api/${tenant.slug}`;
   return (
     <main className="wrap" style={{ ["--primary" as string]: branding.primaryColor }}>
       <header className="header">
@@ -26,6 +31,7 @@ export default async function CotacaoPage({ params }: Props) {
       </header>
       <Checkout
         tenant={tenant.slug}
+        apiBase={apiBase}
         branding={branding}
         plans={tenant.pricing.plans}
         vehicleTypes={tenant.acceptance.vehicleTypes}
