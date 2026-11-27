@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { Lead } from "./types";
 
 /**
@@ -24,7 +23,7 @@ const store: Store = (g.__cotacaoStore ??= { leads: new Map(), crmLog: [] });
 
 export function createLead(data: Pick<Lead, "tenant" | "name" | "phone">): Lead {
   const now = new Date().toISOString();
-  const lead: Lead = { id: randomUUID(), createdAt: now, updatedAt: now, step: "contato", ...data };
+  const lead: Lead = { id: globalThis.crypto.randomUUID(), createdAt: now, updatedAt: now, step: "contato", ...data };
   store.leads.set(lead.id, lead);
   return lead;
 }

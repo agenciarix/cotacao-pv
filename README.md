@@ -72,3 +72,9 @@ npm run typecheck
 - Trocar o armazenamento em memória por Postgres (Supabase) e criar o painel com login.
 - Contratar um serviço de consulta de placa.
 - Fase 2: pagamento (PIX/cartão), vistoria pelo celular, documentos e contrato.
+
+## Demonstração sem servidor
+
+`npm run demo` gera `dist-demo/index.html`, um único arquivo com o checkout inteiro rodando no navegador
+(as rotas `/api` são atendidas na própria página, com as mesmas regras e o Power simulado). Serve para mostrar
+o fluxo para clientes sem precisar de hospedagem.
